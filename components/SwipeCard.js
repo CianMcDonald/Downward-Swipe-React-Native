@@ -1,15 +1,21 @@
-import { View, Dimensions, Image, Animated, PanResponder, Text } from 'react-native';
+import {View, Dimensions, Image, Animated, PanResponder, Text, Button, TouchableWithoutFeedback} from 'react-native';
 import React, {useState, useRef} from "react";
+
+import DoubleTap from "./DoubleTap";
 
 let People;
 let position;
 let panResponder;
 let currentIndex;
 let setCurrentIndex;
+let liked;
+let setLiked;
 let rotate;
 let rotateAndTranslate;
 let nopeOpacity;
 let nextCardOpacity;
+let fadeAnim;
+let lastTap = null;
 People = [
     {id: "1", uri: require('../assets/background.png')},
     {id: "2", uri: require('../assets/possiblebird.png')},
@@ -19,9 +25,12 @@ People = [
 ];
 const screen_width = Dimensions.get('window').width;
 const screen_height = Dimensions.get('window').height;
-export default function SwipeCards() {
-    [currentIndex, setCurrentIndex] = useState(0)
+
+export default function SwipeCards({navigation}) {
+    [currentIndex, setCurrentIndex] = useState(0);
+    [liked, setLiked] = useState(false);
     position = new Animated.ValueXY()
+    fadeAnim = useRef(new Animated.Value(0)).current;
     rotate = position.x.interpolate({
         inputRange: [-1*(screen_width / 2), 0, screen_width / 2],
         outputRange: ['-10deg', '0deg', '10deg'],
@@ -44,40 +53,78 @@ export default function SwipeCards() {
         outputRange: [0, 0, 1],
         extrapolate: 'clamp',
     })
+    const touchThreshold = 100;
     panResponder =
         PanResponder.create({
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (evt, gestureState) => {
-            position.setValue({ x: gestureState.dx, y: gestureState.dy });
-        },
-        onPanResponderRelease: (evt, gestureState) => {
+            onStartShouldSetPanResponder: () => false,
+            onMoveShouldSetPanResponder: (e, gestureState) => {
+                const {dx, dy} = gestureState
+                return (Math.abs(dx) > touchThreshold) || (Math.abs(dy) > touchThreshold)
+            },
+            onPanResponderMove: (evt, gestureState) => {
+                position.setValue({x: gestureState.dx, y: gestureState.dy});
 
-            if (gestureState.dy > 120) {
-                Animated.spring(position, {
-                    toValue: {x: 0 ,y: screen_height+100}
-                }).start(() => {
-                    setCurrentIndex(currentIndex+1), () => {
-                        position.setValue({x: 0, y:0})
-                    }
-                })
-            } else {
-                Animated.spring(position, {
-                    toValue: { x:0, y:0},
-                    friction: 4
-                }).start()
+            },
+            onPanResponderRelease: (evt, gestureState) => {
+                if (gestureState.dy > 120) {
+                    Animated.spring(position, {
+                        toValue: {x: 0, y: screen_height + 100}
+                    }).start(() => {
+                        setCurrentIndex(currentIndex + 1), () => {
+                            position.setValue({x: 0, y: 0})
+                        }
+                    })
+                }
+                if (gestureState.dx > 200) {
+                    navigation.navigate('Bio')
+                    position.setValue({x: 0, y: 0})
+                } else {
+                    Animated.spring(position, {
+                        toValue: {x: 0, y: 0},
+                        friction: 4
+                    }).start()
+                }
             }
-        }
         });
 
     return (
         <View style={{ flex: 1 }}>
+                <View style={{ flex: 1 }}>
+                    {renderPeople()}
+                </View>
             <View style={{ height: 60 }}/>
-            <View style={{ flex: 1 }}>
-                {renderPeople()}
-            </View>
-            <View style={{ height: 60 }} />
         </View>
     );
+}
+const handleDoubleTap = () => {
+    console.log("ran")
+    const now = Date.now();
+    if (lastTap && (now - lastTap) < 300) {
+        fadeIn();
+        Animated.spring(position, {
+            toValue: {x: 0, y: screen_height + 100}
+        }).start(() => {
+            setCurrentIndex(currentIndex + 1), () => {
+                position.setValue({x: 0, y: 0})
+            }
+
+        })
+        fadeOut()
+    } else {
+        lastTap = now;
+    }
+}
+const fadeIn = () => {
+    Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 10
+    }).start()
+}
+const fadeOut = () => {
+    Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 10,
+    }).start()
 }
 const renderPeople = () => {
     return People.map((item, i) => {
@@ -85,53 +132,75 @@ const renderPeople = () => {
             return null
         }else if (i === currentIndex){
             return (
-                <Animated.View
-                    {...panResponder.panHandlers}
-                    key={i}
-                    style={[rotateAndTranslate ,
-                        {
-                            height: screen_height -120,
-                            width: screen_width,
-                            padding: 10,
-                            position:'absolute',
-                        }
-                    ]}
-                >
                     <Animated.View
-                        style={{
-                            position: "absolute",
-                            opacity: nopeOpacity,
-                            bottom: 50,
-                            left: screen_width / 2,
-                            top: (screen_height / 3)*2,
-                            width: 112,
-                            marginLeft: -56,
-                            zIndex: 1000}}
-                        >
-                            <Text
+                        {...panResponder.panHandlers}
+                        key={i}
+                        style={[rotateAndTranslate ,
+                            {
+                                height: screen_height -120,
+                                width: screen_width,
+                                padding: 10,
+                                position:'absolute',
+                            }
+                        ]}
+                    >
+                            <Animated.View
                                 style={{
-                                    borderWidth: 1,
-                                    borderColor: "red",
-                                    color: "red",
-                                    fontSize: 32,
-                                    fontWeight: "800",
-                                    padding: 10
+                                    position: "absolute",
+                                    opacity: nopeOpacity,
+                                    bottom: 50,
+                                    left: screen_width / 2,
+                                    top: (screen_height / 3)*2,
+                                    width: 112,
+                                    marginLeft: -56,
+                                    zIndex: 1000}}
+                                >
+                                    <Text
+                                        style={{
+                                            borderWidth: 1,
+                                            borderColor: "red",
+                                            color: "red",
+                                            fontSize: 32,
+                                            fontWeight: "800",
+                                            padding: 10
+                                        }}
+                                    >
+                                        NOPE
+                                    </Text>
+                            </Animated.View>
+                            <TouchableWithoutFeedback onPress={handleDoubleTap} >
+                                <Image
+                                    style={{
+                                        flex: 1,
+                                        height: null,
+                                        width: null,
+                                        resizeMode: 'cover',
+                                        borderRadius: 20,
+                                    }}
+                                    source={item.uri}
+                                />
+                            </TouchableWithoutFeedback>
+                            <Animated.View
+                                style={{
+                                    opacity: fadeAnim,
+                                    position: 'absolute',
                                 }}
                             >
-                                NOPE
-                            </Text>
+                                <Image
+                                    style={{
+                                        display:'none',
+                                        height: screen_width/8,
+                                        width: screen_width/8,
+                                        top: (screen_height-120)/ 2,
+                                        marginTop: -(((screen_height-120)/8)/2),
+                                        left: screen_width/2,
+                                        marginLeft: -((screen_width/8)/2)
+                                    }}
+                                    source={require('../assets/heart/heart.png')}
+                                    />
+                            </Animated.View>
                     </Animated.View>
-                    <Image
-                        style={{
-                            flex: 1,
-                            height: null,
-                            width: null,
-                            resizeMode: 'cover',
-                            borderRadius: 20,
-                        }}
-                        source={item.uri}
-                    />
-                </Animated.View>
+
             );
         }else {
             return (
