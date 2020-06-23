@@ -53,7 +53,7 @@ export default function SwipeCards({navigation}) {
         outputRange: [0, 0, 1],
         extrapolate: 'clamp',
     })
-    const touchThreshold = 100;
+    const touchThreshold = 25;
     panResponder =
         PanResponder.create({
             onStartShouldSetPanResponder: () => false,
@@ -66,6 +66,7 @@ export default function SwipeCards({navigation}) {
 
             },
             onPanResponderRelease: (evt, gestureState) => {
+                //swipe down
                 if (gestureState.dy > 120) {
                     Animated.spring(position, {
                         toValue: {x: 0, y: screen_height + 100}
@@ -75,8 +76,9 @@ export default function SwipeCards({navigation}) {
                         }
                     })
                 }
-                if (gestureState.dx > 200) {
-                    navigation.navigate('Bio')
+                //swipe right
+                if (gestureState.dx > 120) {
+                    navigation.navigate('Bio', {uri : People[currentIndex].uri});
                     position.setValue({x: 0, y: 0})
                 } else {
                     Animated.spring(position, {
@@ -100,7 +102,6 @@ const handleDoubleTap = () => {
     console.log("ran")
     const now = Date.now();
     if (lastTap && (now - lastTap) < 300) {
-        fadeIn();
         Animated.spring(position, {
             toValue: {x: 0, y: screen_height + 100}
         }).start(() => {
@@ -109,7 +110,6 @@ const handleDoubleTap = () => {
             }
 
         })
-        fadeOut()
     } else {
         lastTap = now;
     }
@@ -117,7 +117,7 @@ const handleDoubleTap = () => {
 const fadeIn = () => {
     Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 10
+        duration: 1
     }).start()
 }
 const fadeOut = () => {
@@ -188,7 +188,6 @@ const renderPeople = () => {
                             >
                                 <Image
                                     style={{
-                                        display:'none',
                                         height: screen_width/8,
                                         width: screen_width/8,
                                         top: (screen_height-120)/ 2,
